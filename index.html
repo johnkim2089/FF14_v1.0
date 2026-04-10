@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFXIV 屬性計算器</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d12;
+    --surface: #16161e;
+    --surface2: #1e1e28;
+    --surface3: #252530;
+    --border: #2a2a38;
+    --border2: #35354a;
+    --accent: #8b7cf8;
+    --accent-dim: #4a3fa0;
+    --text: #e4e2f0;
+    --text2: #8a87a8;
+    --text3: #4a4860;
+    --crit:     #f7c26a;
+    --critdmg:  #f0a050;
+    --faith:    #4fc3a1;
+    --phys:     #e07070;
+    --magic:    #a07af7;
+    --tenacity: #60b4f0;
+  }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 36px 16px 80px;
+  }
+
+  .app { width: 100%; max-width: 760px; }
+
+  .badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .header p  { font-size: 13px; color: var(--text2); margin-top: 5px; line-height: 1.6; margin-bottom: 28px; }
+
+  /* Panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 26px;
+    margin-bottom: 16px;
+  }
+  .panel-title {
+    font-size: 11px; letter-spacing: 0.1em;
+    color: var(--text3); text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  /* Level row */
+  .level-row {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .level-row label {
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--text2); text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .level-row select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px; font-weight: 600;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 130px;
+  }
+  .level-row select:focus { border-color: var(--accent); }
+  .level-row select option { background: #1e1e28; }
+  .mod-pills {
+    display: flex; gap: 8px; flex-wrap: wrap; flex: 1;
+  }
+  .mod-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: var(--text2);
+  }
+  .mod-pill b { color: var(--accent); font-weight: 600; }
+
+  /* Stat input rows */
+  .stat-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: 22px 1fr 180px;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    transition: border-color 0.2s;
+  }
+  .stat-row:focus-within { border-color: var(--border2); }
+
+  .stat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--c, var(--accent));
+    flex-shrink: 0;
+  }
+
+  .stat-label {
+    font-size: 13px; color: var(--text);
+    font-weight: 500;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .stat-label small {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--text3);
+    font-weight: 400;
+  }
+
+  .stat-row input[type="number"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px; font-weight: 600;
+    padding: 8px 12px;
+    outline: none;
+    text-align: right;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+  .stat-row input::-webkit-inner-spin-button,
+  .stat-row input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .stat-row input:focus { border-color: var(--accent); }
+  .stat-row input::placeholder { color: var(--text3); font-size: 13px; font-weight: 400; }
+
+  .calc-btn {
+    width: 100%; padding: 13px;
+    background: var(--accent); border: none;
+    border-radius: 10px; color: #fff;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .calc-btn:hover  { opacity: 0.88; }
+  .calc-btn:active { transform: scale(0.98); }
+
+  /* Results */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .res-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    animation: fadeUp 0.35s ease both;
+  }
+  .res-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--c, var(--accent)); opacity: 0.75;
+  }
+  .res-card:hover { border-color: var(--c, var(--accent)); }
+  .res-card.wide  { grid-column: 1 / -1; }
+  .res-card:nth-child(1){animation-delay:.04s}
+  .res-card:nth-child(2){animation-delay:.08s}
+  .res-card:nth-child(3){animation-delay:.12s}
+  .res-card:nth-child(4){animation-delay:.16s}
+  .res-card:nth-child(5){animation-delay:.20s}
+  .res-card:nth-child(6){animation-delay:.24s}
+
+  .res-name {
+    font-size: 11px; letter-spacing: 0.1em;
+    color: var(--text2); text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .res-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px; font-weight: 600;
+    color: var(--c, var(--text));
+    line-height: 1; margin-bottom: 4px;
+  }
+  .res-value.empty { color: var(--text3); font-size: 20px; }
+  .res-sub {
+    font-size: 11px; color: var(--text3);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 10px;
+  }
+  .res-formula {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px; color: var(--text3);
+    line-height: 1.7; margin-bottom: 10px;
+  }
+  .bar-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .bar-fill  {
+    height: 100%; background: var(--c, var(--accent));
+    border-radius: 2px; width: 0%;
+    transition: width 0.5s cubic-bezier(0.16,1,0.3,1);
+    opacity: 0.65;
+  }
+
+  /* History */
+  .hist-header {
+    font-size: 11px; letter-spacing: 0.1em;
+    color: var(--text3); text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .clear-btn {
+    background: transparent; border: none;
+    font-size: 11px; color: var(--text3);
+    cursor: pointer; padding: 2px 6px;
+    border-radius: 4px; transition: color 0.15s;
+  }
+  .clear-btn:hover { color: #e07070; }
+  .hist-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+  .h-item {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 10px 12px;
+    background: var(--surface2); border-radius: 8px;
+    cursor: pointer; font-size: 11px;
+    transition: background 0.15s;
+  }
+  .h-item:hover { background: var(--surface3); }
+  .h-lv { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--accent); min-width: 42px; }
+  .h-vals { display: flex; gap: 10px; flex-wrap: wrap; color: var(--text3); }
+  .h-vals span { white-space: nowrap; }
+  .h-vals b { color: var(--text2); font-weight: 500; }
+  .empty-hint { font-size: 12px; color: var(--text3); text-align: center; padding: 10px 0; }
+
+  .footer { margin-top: 28px; text-align: center; font-size: 11px; color: var(--text3); }
+  .footer a { color: var(--text3); text-decoration: none; }
+  .footer a:hover { color: var(--accent); }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(10px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes pop {
+    0%{transform:scale(1)} 40%{transform:scale(1.05)} 100%{transform:scale(1)}
+  }
+  .pop { animation: pop 0.28s ease; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="badge">FFXIV · Allagan Studies · v7.0</div>
+    <h1>屬性計算器</h1>
+    <p>依等級自動套用 Level SUB / DIV / MAIN 修正值，各屬性獨立輸入分別計算</p>
+  </div>
+
+  <!-- Input Panel -->
+  <div class="panel">
+    <div class="panel-title">輸入參數</div>
+
+    <!-- Level -->
+    <div class="level-row">
+      <label>等級</label>
+      <select id="sel-level"></select>
+      <div class="mod-pills" id="mod-pills">
+        <div class="mod-pill">MAIN <b id="mp-main">—</b></div>
+        <div class="mod-pill">SUB <b id="mp-sub">—</b></div>
+        <div class="mod-pill">DIV <b id="mp-div">—</b></div>
+      </div>
+    </div>
+
+    <!-- Stat inputs -->
+    <div class="stat-rows">
+      <div class="stat-row" style="--c:var(--crit)">
+        <div class="stat-dot" style="--c:var(--crit)"></div>
+        <div class="stat-label">
+          爆擊數值
+          <small>爆擊率 &amp; 爆擊傷害 (CRIT)</small>
+        </div>
+        <input type="number" id="inp-crit" placeholder="輸入數值" min="1" />
+      </div>
+      <div class="stat-row" style="--c:var(--faith)">
+        <div class="stat-dot" style="--c:var(--faith)"></div>
+        <div class="stat-label">
+          信念數值
+          <small>Determination (DET)</small>
+        </div>
+        <input type="number" id="inp-faith" placeholder="輸入數值" min="1" />
+      </div>
+      <div class="stat-row" style="--c:var(--phys)">
+        <div class="stat-dot" style="--c:var(--phys)"></div>
+        <div class="stat-label">
+          物理減傷數值
+          <small>Defense (DEF)</small>
+        </div>
+        <input type="number" id="inp-phys" placeholder="輸入數值" min="1" />
+      </div>
+      <div class="stat-row" style="--c:var(--magic)">
+        <div class="stat-dot" style="--c:var(--magic)"></div>
+        <div class="stat-label">
+          魔法減傷數值
+          <small>Magic Defense (MDEF)</small>
+        </div>
+        <input type="number" id="inp-magic" placeholder="輸入數值" min="1" />
+      </div>
+      <div class="stat-row" style="--c:var(--tenacity)">
+        <div class="stat-dot" style="--c:var(--tenacity)"></div>
+        <div class="stat-label">
+          堅韌數值
+          <small>Tenacity (TNC)</small>
+        </div>
+        <input type="number" id="inp-tenacity" placeholder="輸入數值" min="1" />
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">計　算</button>
+  </div>
+
+  <!-- Results -->
+  <div class="results-grid">
+    <!-- CRIT Rate -->
+    <div class="res-card" style="--c:var(--crit)">
+      <div class="res-name">爆擊率 p(CRIT)</div>
+      <div class="res-value empty" id="val-crit">—</div>
+      <div class="res-sub" id="sub-crit"></div>
+      <div class="res-formula">⌊ 200 × (CRIT − SUB) / DIV + 50 ⌋ / 10</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-crit" style="--c:var(--crit)"></div></div>
+    </div>
+    <!-- CRIT DMG -->
+    <div class="res-card" style="--c:var(--critdmg)">
+      <div class="res-name">爆擊傷害 f(CRIT)</div>
+      <div class="res-value empty" id="val-critdmg">—</div>
+      <div class="res-sub" id="sub-critdmg"></div>
+      <div class="res-formula">1400 + ⌊ 200 × (CRIT − SUB) / DIV ⌋</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-critdmg" style="--c:var(--critdmg)"></div></div>
+    </div>
+    <!-- Faith -->
+    <div class="res-card" style="--c:var(--faith)">
+      <div class="res-name">信念 f(DET)</div>
+      <div class="res-value empty" id="val-faith">—</div>
+      <div class="res-sub" id="sub-faith"></div>
+      <div class="res-formula">⌊ 140 × (DET − MAIN) / DIV + 1000 ⌋</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-faith" style="--c:var(--faith)"></div></div>
+    </div>
+    <!-- Phys -->
+    <div class="res-card" style="--c:var(--phys)">
+      <div class="res-name">物理減傷 f(DEF)</div>
+      <div class="res-value empty" id="val-phys">—</div>
+      <div class="res-sub" id="sub-phys"></div>
+      <div class="res-formula">減傷 % = ⌊ 15 × DEF / DIV ⌋<br>承傷 % = 100 − ⌊ 15 × DEF / DIV ⌋</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-phys" style="--c:var(--phys)"></div></div>
+    </div>
+    <!-- Magic -->
+    <div class="res-card" style="--c:var(--magic)">
+      <div class="res-name">魔法減傷 f(MDEF)</div>
+      <div class="res-value empty" id="val-magic">—</div>
+      <div class="res-sub" id="sub-magic"></div>
+      <div class="res-formula">減傷 % = ⌊ 15 × MDEF / DIV ⌋<br>承傷 % = 100 − ⌊ 15 × MDEF / DIV ⌋</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-magic" style="--c:var(--magic)"></div></div>
+    </div>
+    <!-- Tenacity -->
+    <div class="res-card wide" style="--c:var(--tenacity)">
+      <div class="res-name">堅韌減傷 f(TNC)</div>
+      <div class="res-value empty" id="val-tenacity">—</div>
+      <div class="res-sub" id="sub-tenacity"></div>
+      <div class="res-formula">( 1000 − ⌊ 200 × (TNC − SUB) / DIV ⌋ ) / 10　→　減傷 %</div>
+      <div class="bar-track"><div class="bar-fill" id="bar-tenacity" style="--c:var(--tenacity)"></div></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="panel">
+    <div class="hist-header">
+      <span>計算紀錄</span>
+      <button class="clear-btn" onclick="clearHistory()">清除</button>
+    </div>
+    <div class="hist-list" id="hist-list">
+      <div class="empty-hint" id="hist-empty">尚無紀錄</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    公式來源：<a href="https://www.akhmorning.com/allagan-studies/stats/crit/" target="_blank">AkhMorning · Allagan Studies</a>
+    　·　雙擊紀錄可重新帶入數值
+  </div>
+</div>
+
+<script>
+// ── Level Modifiers (Lv1~100, AkhMorning / Allagan Studies) ──
+const LEVEL_MODS = {
+  1:  {MAIN:20,  SUB:56,  DIV:56},
+  2:  {MAIN:21,  SUB:57,  DIV:57},
+  3:  {MAIN:22,  SUB:60,  DIV:60},
+  4:  {MAIN:24,  SUB:62,  DIV:62},
+  5:  {MAIN:26,  SUB:65,  DIV:65},
+  6:  {MAIN:27,  SUB:68,  DIV:68},
+  7:  {MAIN:29,  SUB:70,  DIV:70},
+  8:  {MAIN:31,  SUB:73,  DIV:73},
+  9:  {MAIN:33,  SUB:76,  DIV:76},
+  10: {MAIN:35,  SUB:78,  DIV:78},
+  11: {MAIN:36,  SUB:82,  DIV:82},
+  12: {MAIN:38,  SUB:85,  DIV:85},
+  13: {MAIN:41,  SUB:89,  DIV:89},
+  14: {MAIN:44,  SUB:93,  DIV:93},
+  15: {MAIN:46,  SUB:96,  DIV:96},
+  16: {MAIN:49,  SUB:100, DIV:100},
+  17: {MAIN:52,  SUB:104, DIV:104},
+  18: {MAIN:54,  SUB:109, DIV:109},
+  19: {MAIN:57,  SUB:113, DIV:113},
+  20: {MAIN:60,  SUB:116, DIV:116},
+  21: {MAIN:63,  SUB:122, DIV:122},
+  22: {MAIN:67,  SUB:127, DIV:127},
+  23: {MAIN:71,  SUB:133, DIV:133},
+  24: {MAIN:74,  SUB:138, DIV:138},
+  25: {MAIN:78,  SUB:144, DIV:144},
+  26: {MAIN:81,  SUB:150, DIV:150},
+  27: {MAIN:85,  SUB:155, DIV:155},
+  28: {MAIN:89,  SUB:162, DIV:162},
+  29: {MAIN:92,  SUB:168, DIV:168},
+  30: {MAIN:97,  SUB:173, DIV:173},
+  31: {MAIN:101, SUB:181, DIV:181},
+  32: {MAIN:106, SUB:188, DIV:188},
+  33: {MAIN:110, SUB:194, DIV:194},
+  34: {MAIN:115, SUB:202, DIV:202},
+  35: {MAIN:119, SUB:209, DIV:209},
+  36: {MAIN:124, SUB:215, DIV:215},
+  37: {MAIN:128, SUB:223, DIV:223},
+  38: {MAIN:134, SUB:229, DIV:229},
+  39: {MAIN:139, SUB:236, DIV:236},
+  40: {MAIN:144, SUB:244, DIV:244},
+  41: {MAIN:150, SUB:253, DIV:253},
+  42: {MAIN:155, SUB:263, DIV:263},
+  43: {MAIN:161, SUB:272, DIV:272},
+  44: {MAIN:166, SUB:283, DIV:283},
+  45: {MAIN:171, SUB:292, DIV:292},
+  46: {MAIN:177, SUB:302, DIV:302},
+  47: {MAIN:183, SUB:311, DIV:311},
+  48: {MAIN:189, SUB:322, DIV:322},
+  49: {MAIN:196, SUB:331, DIV:331},
+  50: {MAIN:202, SUB:341, DIV:341},
+  51: {MAIN:204, SUB:342, DIV:393},
+  52: {MAIN:205, SUB:344, DIV:444},
+  53: {MAIN:207, SUB:345, DIV:495},
+  54: {MAIN:209, SUB:346, DIV:546},
+  55: {MAIN:210, SUB:347, DIV:596},
+  56: {MAIN:212, SUB:349, DIV:647},
+  57: {MAIN:214, SUB:350, DIV:697},
+  58: {MAIN:215, SUB:351, DIV:748},
+  59: {MAIN:217, SUB:352, DIV:799},
+  60: {MAIN:218, SUB:354, DIV:855},
+  61: {MAIN:224, SUB:355, DIV:920},
+  62: {MAIN:228, SUB:356, DIV:985},
+  63: {MAIN:236, SUB:357, DIV:1050},
+  64: {MAIN:244, SUB:358, DIV:1115},
+  65: {MAIN:252, SUB:359, DIV:1180},
+  66: {MAIN:260, SUB:360, DIV:1245},
+  67: {MAIN:268, SUB:361, DIV:1310},
+  68: {MAIN:276, SUB:362, DIV:1375},
+  69: {MAIN:284, SUB:363, DIV:1440},
+  70: {MAIN:292, SUB:364, DIV:1505},
+  71: {MAIN:296, SUB:365, DIV:1600},
+  72: {MAIN:300, SUB:366, DIV:1700},
+  73: {MAIN:305, SUB:367, DIV:1800},
+  74: {MAIN:310, SUB:368, DIV:1900},
+  75: {MAIN:315, SUB:370, DIV:2000},
+  76: {MAIN:320, SUB:372, DIV:2100},
+  77: {MAIN:325, SUB:374, DIV:2200},
+  78: {MAIN:330, SUB:376, DIV:2300},
+  79: {MAIN:335, SUB:378, DIV:2400},
+  80: {MAIN:340, SUB:380, DIV:2500},
+  81: {MAIN:345, SUB:382, DIV:2600},
+  82: {MAIN:350, SUB:384, DIV:2700},
+  83: {MAIN:355, SUB:386, DIV:2800},
+  84: {MAIN:360, SUB:388, DIV:2900},
+  85: {MAIN:365, SUB:390, DIV:3000},
+  86: {MAIN:370, SUB:392, DIV:3100},
+  87: {MAIN:375, SUB:394, DIV:3200},
+  88: {MAIN:380, SUB:396, DIV:3300},
+  89: {MAIN:385, SUB:398, DIV:3400},
+  90: {MAIN:390, SUB:400, DIV:3300},
+  91: {MAIN:395, SUB:402, DIV:3400},
+  92: {MAIN:400, SUB:404, DIV:3500},
+  93: {MAIN:405, SUB:406, DIV:3600},
+  94: {MAIN:410, SUB:408, DIV:3700},
+  95: {MAIN:415, SUB:410, DIV:3800},
+  96: {MAIN:418, SUB:412, DIV:3900},
+  97: {MAIN:421, SUB:414, DIV:4000},
+  98: {MAIN:424, SUB:416, DIV:4100},
+  99: {MAIN:427, SUB:418, DIV:4200},
+ 100: {MAIN:440, SUB:420, DIV:2780},
+};
+
+// ── Populate level selector ──
+const sel = document.getElementById('sel-level');
+for (let lv = 100; lv >= 1; lv--) {
+  const opt = document.createElement('option');
+  opt.value = lv;
+  opt.textContent = `Lv. ${lv}`;
+  if (lv === 100) opt.selected = true;
+  sel.appendChild(opt);
+}
+
+function updateModPills() {
+  const lv = parseInt(sel.value);
+  const m  = LEVEL_MODS[lv];
+  document.getElementById('mp-main').textContent = m.MAIN;
+  document.getElementById('mp-sub').textContent  = m.SUB;
+  document.getElementById('mp-div').textContent  = m.DIV;
+}
+sel.addEventListener('change', updateModPills);
+updateModPills();
+
+// ── Formulas ──
+const fi = x => Math.floor(x);
+
+function calcCrit(stat, m) {
+  const inner = fi(200 * (stat - m.SUB) / m.DIV);
+  return {
+    rate:   (inner + 50) / 10,          // %
+    damage: (1400 + inner) / 1000,      // multiplier
+  };
+}
+function calcFaith(stat, m) {
+  return (fi(140 * (stat - m.MAIN) / m.DIV) + 1000) / 1000; // multiplier
+}
+function calcPhys(stat, m) {
+  const mitigPct = fi(15 * stat / m.DIV);   // 減傷 %
+  const incomingPct = 100 - mitigPct;        // 承傷 %
+  return { mitigPct, incomingPct };
+}
+function calcMagic(stat, m) {
+  const mitigPct = fi(15 * stat / m.DIV);
+  const incomingPct = 100 - mitigPct;
+  return { mitigPct, incomingPct };
+}
+function calcTenacity(stat, m) {
+  // f(TNC) raw = 1000 - floor(200*(TNC-SUB)/DIV)
+  // convert to reduction %: raw / 10
+  const raw = 1000 - fi(200 * (stat - m.SUB) / m.DIV);
+  return raw / 10;  // reduction %
+}
+
+// ── Display helpers ──
+function setResult(id, barId, text, subText, barPct) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.classList.remove('empty', 'pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+  document.getElementById('sub-' + id.replace('val-','')).textContent = subText;
+  document.getElementById(barId).style.width = Math.min(Math.max(barPct, 0), 100) + '%';
+}
+
+function getVal(id) {
+  const v = document.getElementById(id).value.trim();
+  return v === '' ? null : Number(v);
+}
+
+let history = [];
+
+function calculate() {
+  const lv = parseInt(sel.value);
+  const m  = LEVEL_MODS[lv];
+
+  const critStat    = getVal('inp-crit');
+  const faithStat   = getVal('inp-faith');
+  const physStat    = getVal('inp-phys');
+  const magicStat   = getVal('inp-magic');
+  const tenacityStat= getVal('inp-tenacity');
+
+  let anyCalc = false;
+  const rec = { lv };
+
+  // CRIT
+  if (critStat !== null && critStat > 0) {
+    const r = calcCrit(critStat, m);
+    setResult('val-crit',    'bar-crit',    r.rate.toFixed(1) + '%',
+      `CRIT ${critStat}　→　rate inner = ${fi(200*(critStat-m.SUB)/m.DIV)}`,
+      r.rate);
+    setResult('val-critdmg', 'bar-critdmg', r.damage.toFixed(3) + 'x',
+      `乘率 ${r.damage.toFixed(3)}　( raw ${1400 + fi(200*(critStat-m.SUB)/m.DIV)} )`,
+      (r.damage - 1.4) * 200);
+    rec.crit = critStat; rec.critRate = r.rate; rec.critDmg = r.damage;
+    anyCalc = true;
+  }
+
+  // FAITH
+  if (faithStat !== null && faithStat > 0) {
+    const r = calcFaith(faithStat, m);
+    setResult('val-faith', 'bar-faith', r.toFixed(3) + 'x',
+      `DET ${faithStat}　→　raw ${fi(140*(faithStat-m.MAIN)/m.DIV)+1000}`,
+      (r - 1) * 200);
+    rec.faith = faithStat; rec.faithVal = r;
+    anyCalc = true;
+  }
+
+  // PHYS
+  if (physStat !== null && physStat > 0) {
+    const r = calcPhys(physStat, m);
+    setResult('val-phys', 'bar-phys', r.mitigPct.toFixed(1) + '%',
+      `DEF ${physStat}　→　減傷 ${r.mitigPct.toFixed(1)}%　承傷 ${r.incomingPct.toFixed(1)}%`,
+      r.mitigPct);
+    rec.phys = physStat; rec.physVal = r.mitigPct;
+    anyCalc = true;
+  }
+
+  // MAGIC
+  if (magicStat !== null && magicStat > 0) {
+    const r = calcMagic(magicStat, m);
+    setResult('val-magic', 'bar-magic', r.mitigPct.toFixed(1) + '%',
+      `MDEF ${magicStat}　→　減傷 ${r.mitigPct.toFixed(1)}%　承傷 ${r.incomingPct.toFixed(1)}%`,
+      r.mitigPct);
+    rec.magic = magicStat; rec.magicVal = r.mitigPct;
+    anyCalc = true;
+  }
+
+  // TENACITY
+  if (tenacityStat !== null && tenacityStat > 0) {
+    const r = calcTenacity(tenacityStat, m);
+    // r = raw/10 : 低於100% → 減傷；高於100% → 增傷（坦克加成）
+    const reductionPct = (100 - r).toFixed(1);
+    setResult('val-tenacity', 'bar-tenacity', reductionPct + '%',
+      `TNC ${tenacityStat}　→　減少 ${reductionPct}% 傷害　( raw ${1000-fi(200*(tenacityStat-m.SUB)/m.DIV)} )`,
+      parseFloat(reductionPct));
+    rec.tenacity = tenacityStat; rec.tenacityVal = parseFloat(reductionPct);
+    anyCalc = true;
+  }
+
+  if (anyCalc) {
+    history.unshift(rec);
+    if (history.length > 10) history.pop();
+    renderHistory();
+  }
+}
+
+// ── History ──
+function renderHistory() {
+  const list  = document.getElementById('hist-list');
+  const empty = document.getElementById('hist-empty');
+  list.querySelectorAll('.h-item').forEach(e => e.remove());
+
+  if (history.length === 0) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  history.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'h-item';
+    div.title = '雙擊重新帶入';
+    div.ondblclick = () => {
+      sel.value = item.lv;
+      updateModPills();
+      if (item.crit)     document.getElementById('inp-crit').value     = item.crit;
+      if (item.faith)    document.getElementById('inp-faith').value    = item.faith;
+      if (item.phys)     document.getElementById('inp-phys').value     = item.phys;
+      if (item.magic)    document.getElementById('inp-magic').value    = item.magic;
+      if (item.tenacity) document.getElementById('inp-tenacity').value = item.tenacity;
+      calculate();
+    };
+
+    const parts = [];
+    if (item.critRate   != null) parts.push(`<span>爆率 <b>${item.critRate.toFixed(1)}%</b></span>`);
+    if (item.critDmg    != null) parts.push(`<span>爆傷 <b>${item.critDmg.toFixed(3)}x</b></span>`);
+    if (item.faithVal   != null) parts.push(`<span>信念 <b>${item.faithVal.toFixed(3)}x</b></span>`);
+    if (item.physVal    != null) parts.push(`<span>物減 <b>${item.physVal.toFixed(1)}%</b></span>`);
+    if (item.magicVal   != null) parts.push(`<span>魔減 <b>${item.magicVal.toFixed(1)}%</b></span>`);
+    if (item.tenacityVal!= null) parts.push(`<span>堅韌 <b>${item.tenacityVal}%</b></span>`);
+
+    div.innerHTML = `<span class="h-lv">Lv${item.lv}</span><div class="h-vals">${parts.join('')}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function clearHistory() { history = []; renderHistory(); }
+
+// Enter key on any input triggers calculate
+document.querySelectorAll('input[type="number"]').forEach(inp => {
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+});
+</script>
+</body>
+</html>
